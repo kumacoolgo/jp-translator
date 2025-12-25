@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>日语翻译助手</title>
+  <style>
+    body{max-width:860px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang SC","Noto Sans CJK SC",sans-serif;}
+    textarea{width:100%;min-height:130px;padding:12px;font-size:16px;line-height:1.5;}
+    button{padding:10px 14px;font-size:16px;}
+    pre{white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:10px;min-height:120px;}
+    .row{display:flex;gap:12px;align-items:center;margin:12px 0;}
+    .muted{color:#666;font-size:13px;}
+  </style>
+</head>
+<body>
+  <h1>日语翻译助手</h1>
+
+  <div class="row">
+    <button id="btn">翻译 / 润色</button>
+    <span class="muted" id="status"></span>
+  </div>
+
+  <textarea id="input" placeholder="输入一个单词或短语（中文/日语/其他语言都可以）…"></textarea>
+
+  <h3>结果</h3>
+  <pre id="output"></pre>
+
+  <script>
+    const btn = document.getElementById("btn");
+    const statusEl = document.getElementById("status");
+    const inputEl = document.getElementById("input");
+    const outputEl = document.getElementById("output");
+
+    async function run() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      btn.disabled = true;
+      statusEl.textContent = "处理中…";
+      outputEl.textContent = "";
+
+      try {
+        const r = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Request failed");
+        outputEl.textContent = data.result || "(无输出)";
+        statusEl.textContent = "完成";
+      } catch (e) {
+        statusEl.textContent = "出错";
+        outputEl.textContent = String(e);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener("click", run);
+    inputEl.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") run();
+    });
+  </script>
+</body>
+</html>
