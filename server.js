@@ -100,15 +100,15 @@ app.post("/api/translate", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model,
-        max_output_tokens: 520,
-        reasoning: { effort: "none" }, // ✅ 重点：减少/关闭推理消耗
-  text: { verbosity: "low" },    // ✅ 重点：让它更短更快
-        input: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: text }
-        ]
-      })
+          model,
+          max_output_tokens: 520,
+          reasoning: { effort: "minimal" },
+          text: { verbosity: "low" },
+          input: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text }
+           ]
+        })
     });
 
     if (!resp.ok) {
