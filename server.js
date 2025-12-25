@@ -102,7 +102,6 @@ app.post("/api/translate", async (req, res) => {
       body: JSON.stringify({
         model,
         max_output_tokens: 420,
-        temperature: 0.2,
         input: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text }
