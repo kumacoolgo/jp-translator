@@ -101,7 +101,7 @@ app.post("/api/translate", async (req, res) => {
       },
       body: JSON.stringify({
           model,
-          max_output_tokens: 520,
+          //max_output_tokens: 520,
           reasoning: { effort: "minimal" },
           text: { verbosity: "low" },
           input: [
