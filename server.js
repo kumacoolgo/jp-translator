@@ -26,12 +26,14 @@ function getSystemPrompt() {
 - 如果输入已经是日语：请将其润色为更通顺、更自然的日语（可纠正不自然表达、用词、语法、敬语；保留原意，不要改成不同意思）。
 - 专有名词、数字、单位尽量保留（必要时可补充常见日语写法）。
 - 输出只包含指定格式内容，不要额外解释或客套话。
+- 不要写百科式长段落，不要展开背景知识。
+- “假名拼读”只写对应日语译词的读音，不要把中文解释或多余内容写进来；英文缩写按日语常见读法。
 
 输出内容必须包含：
 1. 日语翻译：
 2. 假名拼读：
 3. 解释：
-4. 例句：至少3句（每句附中文翻译）
+4. 例句：至少2句（每句附中文翻译）
 
 严格按以下字段名逐行输出（字段名必须一模一样）：
 日语翻译：
@@ -46,7 +48,6 @@ function getSystemPrompt() {
 例句：
 例句 1（日语） - 中文翻译
 例句 2（日语） - 中文翻译
-例句 3（日语） - 中文翻译
 `.trim();
 }
 
@@ -89,7 +90,7 @@ app.post("/api/translate", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
     }
 
-    const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+    const model = process.env.OPENAI_MODEL || "gpt-5-nano-2025-08-07";
     const systemPrompt = getSystemPrompt();
 
     const resp = await fetch("https://api.openai.com/v1/responses", {
@@ -100,6 +101,8 @@ app.post("/api/translate", async (req, res) => {
       },
       body: JSON.stringify({
         model,
+        max_output_tokens: 420,
+        temperature: 0.2,
         input: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text }
