@@ -5,19 +5,54 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>日语翻译助手</title>
   <style>
-    body{max-width:860px;margin:40px auto;padding:0 16px;font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang SC","Noto Sans CJK SC",sans-serif;}
-    textarea{width:100%;min-height:130px;padding:12px;font-size:16px;line-height:1.5;}
-    button{padding:10px 14px;font-size:16px;}
-    pre{white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:10px;min-height:120px;}
-    .row{display:flex;gap:12px;align-items:center;margin:12px 0;}
-    .muted{color:#666;font-size:13px;}
+    body{
+      max-width:860px;
+      margin:40px auto;
+      padding:0 16px;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang SC","Noto Sans CJK SC",sans-serif;
+    }
+    textarea{
+      width:100%;
+      min-height:130px;
+      padding:12px;
+      font-size:16px;
+      line-height:1.5;
+      box-sizing:border-box;
+    }
+    button{
+      padding:10px 14px;
+      font-size:16px;
+    }
+    button:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+    pre{
+      white-space:pre-wrap;
+      background:#f6f6f6;
+      padding:12px;
+      border-radius:10px;
+      min-height:120px;
+    }
+    .row{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin:12px 0;
+      flex-wrap:wrap;
+    }
+    .muted{
+      color:#666;
+      font-size:13px;
+    }
   </style>
 </head>
 <body>
   <h1>日语翻译助手</h1>
 
   <div class="row">
-    <button id="btn">翻译 / 润色</button>
+    <button id="btn" type="button">翻译 / 润色</button>
+    <button id="clearBtn" type="button">清空</button>
     <span class="muted" id="status"></span>
   </div>
 
@@ -28,9 +63,23 @@
 
   <script>
     const btn = document.getElementById("btn");
+    const clearBtn = document.getElementById("clearBtn");
     const statusEl = document.getElementById("status");
     const inputEl = document.getElementById("input");
     const outputEl = document.getElementById("output");
+
+    function hasContent() {
+      return inputEl.value.trim().length > 0 || outputEl.textContent.trim().length > 0;
+    }
+
+    function syncClearState() {
+      // 翻译中禁用；非翻译中根据是否有内容启用
+      if (btn.disabled) {
+        clearBtn.disabled = true;
+      } else {
+        clearBtn.disabled = !hasContent();
+      }
+    }
 
     async function run() {
       const text = inputEl.value.trim();
@@ -39,6 +88,7 @@
       btn.disabled = true;
       statusEl.textContent = "处理中…";
       outputEl.textContent = "";
+      syncClearState();
 
       try {
         const r = await fetch("/api/translate", {
@@ -46,8 +96,10 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text })
         });
+
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || "Request failed");
+
         outputEl.textContent = data.result || "(无输出)";
         statusEl.textContent = "完成";
       } catch (e) {
@@ -55,13 +107,31 @@
         outputEl.textContent = String(e);
       } finally {
         btn.disabled = false;
+        syncClearState();
       }
     }
 
+    function clearAll() {
+      inputEl.value = "";
+      outputEl.textContent = "";
+      statusEl.textContent = "";
+      inputEl.focus();
+      syncClearState();
+    }
+
     btn.addEventListener("click", run);
+    clearBtn.addEventListener("click", clearAll);
+
+    // 输入变化就更新按钮状态
+    inputEl.addEventListener("input", syncClearState);
+
+    // Ctrl/⌘ + Enter 快捷翻译
     inputEl.addEventListener("keydown", (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") run();
     });
+
+    // 初始状态
+    syncClearState();
   </script>
 </body>
 </html>
