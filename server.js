@@ -8,17 +8,16 @@ app.use(express.json({ limit: "1mb" }));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 静态前端
+// ===== 静态前端 =====
 app.use(express.static(path.join(__dirname, "public")));
 
+// ===== 从环境变量读取 System Prompt（支持 \n）=====
 function getSystemPrompt() {
-  // ✅ Zeabur 有时多行会被处理得不一致：支持 \n 转换（推荐）
   const raw = process.env.SYSTEM_PROMPT || "";
   const fromEnv = raw.replace(/\\n/g, "\n").trim();
-
   if (fromEnv) return fromEnv;
 
-  // ✅ 兜底默认 prompt
+  // 兜底默认 prompt（你也可以完全删掉，只依赖 env）
   return `
 你是一个专业的日语翻译与润色助手。我会给你一个单词或短语，可能是中文、日语或其他任何语言。
 
@@ -51,15 +50,12 @@ function getSystemPrompt() {
 `.trim();
 }
 
-
-
+// ===== 提取返回文本（兼容不同返回结构）=====
 function extractOutputText(data) {
-  // 1) 最常见
   if (typeof data?.output_text === "string" && data.output_text.trim()) {
     return data.output_text.trim();
   }
 
-  // 2) 有些返回会把文本放到 output 数组里（多段 content）
   const chunks = [];
   const out = data?.output;
   if (Array.isArray(out)) {
@@ -67,27 +63,30 @@ function extractOutputText(data) {
       const content = item?.content;
       if (Array.isArray(content)) {
         for (const c of content) {
-          // 兼容 text 字段
           if (typeof c?.text === "string") chunks.push(c.text);
-          // 兼容其他可能字段（保守兜底）
           else if (typeof c?.content === "string") chunks.push(c.content);
         }
       }
     }
   }
+
   const joined = chunks.join("").trim();
   if (joined) return joined;
 
-  // 3) 兜底：把整个返回 JSON 打出来，方便你排查（线上建议关掉）
   return "";
 }
 
-
+// ===== 翻译接口 =====
 app.post("/api/translate", async (req, res) => {
   try {
     const { text } = req.body || {};
     if (!text || typeof text !== "string") {
       return res.status(400).json({ error: "Missing text" });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "OPENAI_API_KEY is not set" });
     }
 
     const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
@@ -96,16 +95,16 @@ app.post("/api/translate", async (req, res) => {
     const resp = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model,
         input: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: text },
-        ],
-      }),
+          { role: "user", content: text }
+        ]
+      })
     });
 
     if (!resp.ok) {
@@ -115,14 +114,19 @@ app.post("/api/translate", async (req, res) => {
 
     const data = await resp.json();
     const outputText = extractOutputText(data);
-    
-    res.json({ result: (outputText || "").trim() });
+
+    // 可选：调试用（不要长期开，避免日志太长）
+    if (!outputText && process.env.DEBUG_OPENAI === "1") {
+      console.log("OpenAI raw response:", JSON.stringify(data).slice(0, 4000));
+    }
+
+    return res.json({ result: outputText || "" });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    return res.status(500).json({ error: String(e) });
   }
 });
 
-// 健康检查（可选，Zeabur 有时会用到）
+// 健康检查（可选）
 app.get("/health", (req, res) => res.send("ok"));
 
 const port = process.env.PORT || 3000;
